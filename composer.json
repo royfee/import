@@ -1,0 +1,48 @@
+{
+    "name": "royfee/import",
+    "type": "library",
+    "description": "轻量级文件导入工具，支持 Excel/CSV/TXT，自动模板匹配与字段映射，支持流式分批读取大文件",
+    "license": "MIT",
+    "keywords": ["import", "excel", "csv", "mapping", "template", "streaming", "chunk"],
+    "version":"1.0.0",
+    "autoload": {
+        "psr-4": {
+            "Royfee\\Import\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Royfee\\Import\\Tests\\": "tests/"
+        }
+    },
+    "authors": [
+        {
+            "name": "royfee",
+            "email": "aiernet@126.com"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "avadim/fast-excel-reader": "^4.5"
+    },
+    "require-dev": {
+        "avadim/fast-excel-writer": "^6.20",
+        "phpunit/phpunit": "^9.5"
+    },
+    "config": {
+        "sort-packages": true,
+        "audit": {
+            "block-insecure": false
+        }
+    },
+    "minimum-stability": "stable",
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "https://repo.packagist.org",
+            "canonical": true
+        }
+    ]
+}
