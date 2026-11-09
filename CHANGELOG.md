@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-09
+
+### Added
+- `matchData()` 新增 `$merge` 参数，支持多 sheet 匹配时将子 sheet 数据 单次遍历嵌套到父 sheet 记录中
+  - 支持：`key`（关联字段）、`target`（嵌套字段名）、`parent`（父 sheet 索引）、`child`（子 sheet 索引）
+  - 性能：边过程中完成，边无中间数组，无二次遍历
+  - 典型场景：Sheet1 订单 + Sheet2 内件 → 订单数组每条记录包含 `items` 子数组
+
+### Changed
+- 无破坏性变更，`$merge` 参数可选，默认行为 原有行为
+
 ## [1.0.0] - 2026-11-07
 
 ### Added
@@ -134,5 +145,6 @@ if (isset($data[0]['A'])) {
 
 **建议**：升级后先在小范围测试，确认数据格式符合预期后再全面部署。
 
+[1.1.0]: https://github.com/royfee/import/releases/tag/v1.1.0
 [1.0.0]: https://github.com/royfee/import/releases/tag/v1.0.0
 [0.1.0]: https://github.com/royfee/import/releases/tag/v0.1.0

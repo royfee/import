@@ -4,7 +4,7 @@
     "description": "轻量级文件导入工具，支持 Excel/CSV/TXT，自动模板匹配与字段映射，支持流式分批读取大文件",
     "license": "MIT",
     "keywords": ["import", "excel", "csv", "mapping", "template", "streaming", "chunk"],
-    "version":"1.0.0",
+    "version":"1.1.0",
     "autoload": {
         "psr-4": {
             "Royfee\\Import\\": "src/"

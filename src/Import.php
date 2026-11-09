@@ -77,8 +77,15 @@ class Import
      *
      * 单模板: 匹配 sheet 0，返回扁平行数组
      * 多模板: [int => 模板数组] 按 sheet 索引分配
+     *
+     * merge 参数（可选）: 在多 sheet 匹配时直接将子 sheet 数据嵌套到父 sheet 中
+     *   - key:    关联字段名（映射后的目标字段名，如 'order_no'）
+     *   - target: 嵌套字段名（如 'items'）
+     *   - parent: 父 sheet 索引（默认 0）
+     *   - child:  子 sheet 索引（默认 1）
+     *   启用后仅遍历，直接引用索引直接接合并
      */
-    public function matchData(array $templates): array
+    public function matchData(array $templates, ?array $merge = null): array
     {
         $wantSheets = $this->options['sheet'];
         $isMultiTpl = $this->isMultiTemplate($templates);
@@ -89,7 +96,7 @@ class Import
             $isMulti    = $this->isMultiSheetData($data);
 
             if ($isMulti) {
-                return $this->matchMultiSheet($data, $allHeaders, $templates, $isMultiTpl);
+                return $this->matchMultiSheet($data, $allHeaders, $templates, $isMultiTpl, $merge);
             }
 
             $headers = $allHeaders[0] ?? [];
@@ -156,11 +163,67 @@ class Import
 
     // ─── 多 sheet 匹配 ───────────────────────────────────────
 
-    protected function matchMultiSheet(array $data, array $allHeaders, array $templates, bool $isMultiTpl): array
+    protected function matchMultiSheet(array $data, array $allHeaders, array $templates, bool $isMultiTpl, ?array $merge = null): array
     {
-        $result = [];
+        $result    = [];
+        $mergeUsed = false;
 
+        // 启用 merge 时，真正的单次遍历：
+        // 1. 处理父 sheet 时建立索引
+        // 2. 处理子 sheet 时，每映射一行就直接 merge 到父记录
+        if ($merge !== null) {
+            $parentIdx = $merge['parent'] ?? 0;
+            $childIdx  = $merge['child']  ?? 1;
+            $key       = $merge['key']    ?? 'order_no';
+            $target    = $merge['target'] ?? 'items';
+
+            if (isset($data[$parentIdx], $data[$childIdx])) {
+                $parentHeaders = $allHeaders[$parentIdx] ?? [];
+                $childHeaders  = $allHeaders[$childIdx]  ?? [];
+
+                $parentTpl = $isMultiTpl ? ($templates[$parentIdx] ?? []) : $templates;
+                $childTpl  = $templates[$childIdx] ?? [];
+
+                // 获取列映射（只算一次）
+                $parentColMapping = $this->getColMapping($parentHeaders, $parentTpl);
+                $childColMapping  = $this->getColMapping($childHeaders, $childTpl);
+
+                // 第一遍：处理父 sheet，映射 + 建索引
+                $parentMapped = [];
+                $keyIndex = [];  // key => 父记录在数组中的索引
+                foreach ($data[$parentIdx] as $row) {
+                    $mapped = $this->mapRow($row, $parentColMapping);
+                    $mapped[$target] = [];
+                    $kv = $mapped[$key] ?? '';
+                    if ($kv !== '') {
+                        $keyIndex[$kv] = count($parentMapped);
+                    }
+                    $parentMapped[] = $mapped;
+                }
+
+                // 第二遍：处理子 sheet，映射一行 merge 一行（无中间数组）
+                foreach ($data[$childIdx] as $row) {
+                    $mapped = $this->mapRow($row, $childColMapping);
+                    $kv = $mapped[$key] ?? '';
+                    if ($kv !== '' && isset($keyIndex[$kv])) {
+                        $parentMapped[$keyIndex[$kv]][$target][] = $mapped;
+                    }
+                }
+
+                $result[$parentIdx] = $parentMapped;
+                $mergeUsed = true;
+            }
+        }
+
+        // 处理其余 sheet
         foreach ($data as $sheetIndex => $sheetData) {
+            if ($mergeUsed && $sheetIndex === ($parentIdx ?? null)) {
+                continue;  // 父 sheet 已处理
+            }
+            if ($mergeUsed && $sheetIndex === ($childIdx ?? null)) {
+                continue;  // 子 sheet 已 merge，跳过
+            }
+
             $headers = $allHeaders[$sheetIndex] ?? [];
 
             if ($isMultiTpl && isset($templates[$sheetIndex])) {
@@ -173,6 +236,13 @@ class Import
             }
 
             $result[$sheetIndex] = $this->matchSingleSheet($sheetData, $headers, $tpl);
+        }
+
+        ksort($result);
+
+        // merge 模式下只返回父 sheet 数据（已包含嵌套子记录）
+        if ($mergeUsed) {
+            return $result[$parentIdx] ?? [];
         }
 
         return $result;
@@ -192,6 +262,35 @@ class Import
 
         $colMapping = $this->buildColMapping($headers, $matched);
         return $this->mapData($data, $colMapping);
+    }
+
+    /**
+     * 获取列映射（不处理数据），用于逐行处理场景
+     */
+    protected function getColMapping(array $headers, array $templates): array
+    {
+        if (empty($headers) || empty($templates)) {
+            return [];
+        }
+
+        $matched = $this->matchTemplate($headers, $templates);
+        if ($matched === null) {
+            return [];
+        }
+
+        return $this->buildColMapping($headers, $matched);
+    }
+
+    /**
+     * 映射单行数据
+     */
+    protected function mapRow(array $row, array $colMapping): array
+    {
+        $mapped = [];
+        foreach ($colMapping as $col => $target) {
+            $mapped[$target] = $row[$col] ?? '';
+        }
+        return $mapped;
     }
 
     // ─── 格式判断 ────────────────────────────────────────────

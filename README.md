@@ -8,6 +8,7 @@
 - 🎯 **智能模板匹配**：自动识别表头并映射到目标字段
 - 💾 **内存优化**：流式读取大文件，内存占用恒定
 - 🔄 **多 Sheet 支持**：一次读取 Excel 的多个工作表
+- 🔗 **关联合并**：多 sheet 匹配时单次遍历将子记录嵌套到父记录
 - 🛡️ **容错处理**：匹配失败时返回原始数据，不中断程序
 - 📦 **轻量级**：最小化依赖，易于集成
 
@@ -58,9 +59,50 @@ $data = $import->matchData([
     0 => [['关联单号' => 'order_no', '运单号' => 'tracking_no']],
     1 => [['关联单号' => 'order_no', '物品名称' => 'name', '行邮税号' => 'hscode']]
 ]);
+
+// 返回格式：[0 => [订单数组], 1 => [内件数组]]（独立）
 ```
 
-### 5. 流式读取（大文件）
+### 5. 多 Sheet 关联合并（Merge）
+
+当 Sheet1 是订单、Sheet2 是订单内件时，可通过 `merge` 参数在匹配的同时将内件嵌套到对应订单中，**单次遍历完成，无额外开销**：
+
+```php
+$import = new Import('data.xls', ['sheet' => 2]);
+$data = $import->matchData([
+    0 => [['关联单号' => 'order_no', '运单号' => 'tracking_no', '重量' => 'weight']],
+    1 => [['关联单号' => 'order_no', '物品名称' => 'name', '行邮税号' => 'hscode']]
+], [
+    'key'    => 'order_no',   // 关联字段（两个 sheet 共 的目标字段名）
+    'target' => 'items',      // 内件嵌套到订单里的字段名
+    // 'parent' => 0,         // 父 sheet 索引（默认 0）
+    // 'child'  => 1,         // 子 sheet 索引（默认 1）
+]);
+
+// 返回格式（直接已嵌套内件）：
+// [
+//     ['order_no' => 'ORD001', 'tracking_no' => 'T001', 'weight' => '1.5', 'items' => [
+//         ['order_no' => 'ORD001', 'name' => '物品A', 'hscode' => '12345678'],
+//         ['order_no' => 'ORD001', 'name' => '物品B', 'hscode' => '87654321'],
+//     ]],
+//     ['order_no' => 'ORD002', 'tracking_no' => 'T002', 'weight' => '2.0', 'items' => [
+//         ['order_no' => 'ORD002', 'name' => '物品C', 'hscode' => '11111111'],
+//     ]],
+// ]
+```
+
+**merge 参数说明**：
+
+| 参数 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `key` | string | `'order_no'` | 关联字段名（映射后的目标字段名） |
+| `target` | string | `'items'` | 子记录嵌套到父记录的字段名 |
+| `parent` | int | `0` | 父 sheet 索引 |
+| `child` | int | `1` | 子 sheet 索引 |
+
+**性能**：merge 在匹配过程中完成完成，不产生二次遍历，适合大数据量场景。
+
+### 6. 流式读取（大文件）
 
 ```php
 $import = new Import('large_file.xlsx');
@@ -71,7 +113,7 @@ foreach ($import->cursor() as $row) {
 }
 ```
 
-### 6. 分批处理
+### 7. 分批处理
 
 ```php
 $import = new Import('data.csv');
@@ -140,8 +182,8 @@ $import = new Import('data.xls', [
 #### `getData(): array`
 获取原始数据，列名使用 A/B/C...
 
-#### `matchData(array $templates): array`
-根据模板匹配并映射数据
+#### `matchData(array $templates, ?array $merge = null): array`
+根据模板匹配并映射数据。`$merge` 参数可选，用于多 sheet 场景下将子 sheet 数据 关联嵌套到父 sheet 记录中（详见"多 Sheet 关联合并"章节）。
 
 #### `cursor(): \Generator`
 流式读取，返回 Generator
