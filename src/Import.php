@@ -27,7 +27,7 @@ class Import
         }
 
         $this->filePath  = $filePath;
-        $this->extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        $this->extension = strtolower(($options['extension'] ?? '') ?: pathinfo($filePath, PATHINFO_EXTENSION));
         $this->options   = array_merge(['sheet' => 1], $options);
     }
 

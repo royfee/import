@@ -51,6 +51,26 @@ class ImportTest extends TestCase
         }
     }
 
+    public function testExtensionOptionOverridesFilePath(): void
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'import_') . '.tmp';
+        copy($this->dataDir . 'orders.csv', $tempFile);
+
+        try {
+            $data = (new Import($tempFile, ['extension' => 'csv']))->getData();
+            $this->assertNotEmpty($data);
+            $this->assertArrayHasKey('A', $data[0]);
+        } finally {
+            unlink($tempFile);
+        }
+    }
+
+    public function testEmptyExtensionOptionFallsBackToFilePath(): void
+    {
+        $import = new Import($this->dataDir . 'orders.csv', ['extension' => '']);
+        $this->assertNotEmpty($import->getData());
+    }
+
     public function testConstructWithOptions(): void
     {
         $import = new Import($this->dataDir . 'orders.csv', [

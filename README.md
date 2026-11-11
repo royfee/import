@@ -172,12 +172,27 @@ $import = new Import('data.xls', [
 ]);
 ```
 
+### 上传文件（扩展名不可用）
+
+上传的临时文件通常没有真实扩展名（如 PHP 的 `upload_tmp_dir/phpXXXX.tmp`），此时用 `extension` 显式指定格式，包本身不做文件内容探测：
+
+```php
+// ThinkPHP 6/8
+$file = $request->file('excel');
+
+$import = new Import($file->getPathname(), [
+    'extension' => $file->getOriginalExtension(), // 'xlsx'
+]);
+```
+
+不传或传空字符串时，仍按文件路径的扩展名判断。
+
 ## API 参考
 
 ### Import 类
 
 #### `__construct(string $filePath, array $options = [])`
-创建导入实例
+创建导入实例。`options` 中的 `extension` 可覆盖按路径推断出的扩展名（用于上传的 `.tmp` 文件）。
 
 #### `getData(): array`
 获取原始数据，列名使用 A/B/C...
